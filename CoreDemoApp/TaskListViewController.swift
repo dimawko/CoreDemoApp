@@ -6,15 +6,14 @@
 //
 
 import UIKit
-import CoreData
 
 class TaskListViewController: UITableViewController {
     
-    private let viewContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    private var viewContext = CoreDataManager.shared.viewContext
     
     private var taskList: [Task] = []
     private let cellID = "task"
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
@@ -22,7 +21,7 @@ class TaskListViewController: UITableViewController {
         setupNavigationBar()
         fetchData()
     }
-
+    
     private func setupNavigationBar() {
         title = "Task List"
         navigationController?.navigationBar.prefersLargeTitles = true
