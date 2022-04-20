@@ -11,7 +11,6 @@ class TaskListViewController: UITableViewController {
 
     // MARK: - Private properties
     private let cellID = "task"
-    private let viewContext = CoreDataManager.shared.viewContext
     private var taskList: [Task] = []
     private var saveAction: UIAlertAction!
 
