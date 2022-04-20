@@ -18,8 +18,9 @@ class TaskListViewController: UITableViewController {
     // MARK: - viewDidLoad
     override func viewDidLoad() {
         super.viewDidLoad()
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
+
         view.backgroundColor = .white
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
         setupNavigationBar()
         fetchData()
     }
@@ -90,57 +91,26 @@ class TaskListViewController: UITableViewController {
         saveAction.isEnabled = textField.text?.count ?? 0 > 0
     }
 
-    // MARK: - Interaction with CoreData
+    // MARK: Fetching and saving data
     private func fetchData() {
-        let fetchRequest = Task.fetchRequest()
-        do {
-            taskList = try viewContext.fetch(fetchRequest)
-        } catch {
-            print(error.localizedDescription)
-        }
+        taskList = CoreDataManager.shared.fetchData()
     }
 
     private func saveTask(_ taskName: String) {
-        let task = Task(context: viewContext)
-        task.title = taskName
+        let task = CoreDataManager.shared.saveTask(taskName)
         taskList.append(task)
         let cellIndex = IndexPath(row: taskList.count - 1, section: 0)
         tableView.insertRows(at: [cellIndex], with: .automatic)
-
-        do {
-            try viewContext.save()
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-
-    private func editTask(currentTask: Task, _ newTaskTitle: String) {
-        currentTask.title = newTaskTitle
-        do {
-            try viewContext.save()
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-
-    private func deleteTask(currentTask: Task) {
-        viewContext.delete(currentTask)
-        do {
-            try viewContext.save()
-        } catch {
-            print(error.localizedDescription)
-        }
     }
 }
 
-// MARK: - TableView data source and swipe actions
+// MARK: - TableView methods
 extension TaskListViewController {
 
     override func tableView(
         _ tableView: UITableView,
         numberOfRowsInSection section: Int
     ) -> Int {
-
         taskList.count
     }
 
@@ -159,6 +129,7 @@ extension TaskListViewController {
         return cell
     }
 
+    // MARK: - Deleting task
     override func tableView(
         _ tableView: UITableView,
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
@@ -170,7 +141,7 @@ extension TaskListViewController {
             style: .destructive,
             title: "Delete"
         ) { _, _, completion in
-            self.deleteTask(currentTask: task)
+            CoreDataManager.shared.deleteTask(currentTask: task)
             self.taskList.remove(at: indexPath.row)
             tableView.deleteRows(at: [indexPath], with: .automatic)
             completion(true)
@@ -178,6 +149,7 @@ extension TaskListViewController {
         return UISwipeActionsConfiguration(actions: [deleteAction])
     }
 
+    // MARK: - Editing task
     override func tableView(
         _ tableView: UITableView,
         leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath
@@ -204,7 +176,7 @@ extension TaskListViewController {
             with: "Edit task",
             and: "What do you want to do?",
             textFieldText: task.title) { newTask in
-                self.editTask(currentTask: task, newTask)
+                CoreDataManager.shared.editTask(currentTask: task, newTask)
                 cell?.textLabel?.text = newTask
                 self.tableView.reloadRows(at: [indexPath], with: .automatic)
             }
