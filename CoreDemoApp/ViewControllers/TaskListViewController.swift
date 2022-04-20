@@ -160,6 +160,7 @@ extension TaskListViewController {
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         editTableView(indexPath: indexPath)
+        tableView.deselectRow(at: indexPath, animated: true)
     }
 
     private func editTableView(indexPath: IndexPath) {
