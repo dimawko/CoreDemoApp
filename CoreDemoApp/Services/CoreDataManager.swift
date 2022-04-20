@@ -11,9 +11,11 @@ class CoreDataManager {
 
     static let shared = CoreDataManager()
 
-    lazy var viewContext = persistentContainer.viewContext
+    private var viewContext: NSManagedObjectContext {
+        persistentContainer.viewContext
+    }
 
-    private lazy var persistentContainer: NSPersistentContainer = {
+    private var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "CoreDemoApp")
         container.loadPersistentStores(completionHandler: { (_, error) in
             if let error = error as NSError? {
@@ -25,33 +27,32 @@ class CoreDataManager {
 
     private init() {}
 
-    func fetchData() -> [Task] {
+    func fetchData(completion: @escaping(Result<[Task], Error>) -> Void) {
         var tasks: [Task] = []
         let fetchRequest = Task.fetchRequest()
         do {
             tasks = try viewContext.fetch(fetchRequest)
-        } catch {
-            print(error.localizedDescription)
+            completion(.success(tasks))
+        } catch let error {
+            completion(.failure(error))
         }
-        return tasks
     }
 
-    func saveTask(_ taskName: String) -> Task {
+    func saveTask(_ taskName: String, completion: @escaping(Result<Task, Error>) -> Void) {
         let task = Task(context: viewContext)
         task.title = taskName
-        trySaveViewContext(viewContext)
-
-        return task
+        completion(.success(task))
+        saveContext()
     }
 
     func editTask(currentTask: Task, _ newTaskTitle: String) {
         currentTask.title = newTaskTitle
-        trySaveViewContext(viewContext)
+        saveContext()
     }
 
     func deleteTask(currentTask: Task) {
         viewContext.delete(currentTask)
-        trySaveViewContext(viewContext)
+        saveContext()
     }
 
     func saveContext() {
@@ -63,14 +64,6 @@ class CoreDataManager {
                 let nserror = error as NSError
                 fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
             }
-        }
-    }
-
-    private func trySaveViewContext(_ viewContext: NSManagedObjectContext) {
-        do {
-            try viewContext.save()
-        } catch {
-            print(error.localizedDescription)
         }
     }
 }

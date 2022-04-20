@@ -92,31 +92,38 @@ class TaskListViewController: UITableViewController {
 
     // MARK: Fetching and saving data
     private func fetchData() {
-        taskList = CoreDataManager.shared.fetchData()
+        CoreDataManager.shared.fetchData(completion: { result in
+            switch result {
+            case .success(let tasks):
+                self.taskList = tasks
+            case .failure(let error):
+                print(error)
+            }
+        })
     }
 
     private func saveTask(_ taskName: String) {
-        let task = CoreDataManager.shared.saveTask(taskName)
-        taskList.append(task)
-        let cellIndex = IndexPath(row: taskList.count - 1, section: 0)
-        tableView.insertRows(at: [cellIndex], with: .automatic)
+        CoreDataManager.shared.saveTask(taskName) { result in
+            switch result {
+            case .success(let task):
+                self.taskList.append(task)
+                let cellIndex = IndexPath(row: self.taskList.count - 1, section: 0)
+                self.tableView.insertRows(at: [cellIndex], with: .automatic)
+            case .failure(let error):
+                print(error)
+            }
+        }
     }
 }
 
 // MARK: - TableView methods
 extension TaskListViewController {
 
-    override func tableView(
-        _ tableView: UITableView,
-        numberOfRowsInSection section: Int
-    ) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         taskList.count
     }
 
-    override func tableView(
-        _ tableView: UITableView,
-        cellForRowAt indexPath: IndexPath
-    ) -> UITableViewCell {
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
         let task = taskList[indexPath.row]
         let cell = tableView.dequeueReusableCell(withIdentifier: cellID, for: indexPath)
@@ -129,17 +136,11 @@ extension TaskListViewController {
     }
 
     // MARK: - Deleting task
-    override func tableView(
-        _ tableView: UITableView,
-        trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
-    ) -> UISwipeActionsConfiguration? {
+    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
 
         let task = taskList[indexPath.row]
 
-        let deleteAction = UIContextualAction(
-            style: .destructive,
-            title: "Delete"
-        ) { _, _, completion in
+        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { _, _, completion in
             CoreDataManager.shared.deleteTask(currentTask: task)
             self.taskList.remove(at: indexPath.row)
             tableView.deleteRows(at: [indexPath], with: .automatic)
@@ -149,14 +150,8 @@ extension TaskListViewController {
     }
 
     // MARK: - Editing task
-    override func tableView(
-        _ tableView: UITableView,
-        leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath
-    ) -> UISwipeActionsConfiguration? {
-        let editAction = UIContextualAction(
-            style: .normal,
-            title: "Edit"
-        ) { _, _, completion in
+    override func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let editAction = UIContextualAction(style: .normal, title: "Edit") { _, _, completion in
             self.editTableView(indexPath: indexPath)
             completion(true)
         }
