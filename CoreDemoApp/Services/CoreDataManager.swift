@@ -12,6 +12,8 @@ class CoreDataManager {
     
     static let shared = CoreDataManager()
     
+    lazy var viewContext = persistentContainer.viewContext
+    
     private lazy var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "CoreDemoApp")
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
@@ -21,8 +23,6 @@ class CoreDataManager {
         })
         return container
     }()
-    
-    lazy var viewContext = persistentContainer.viewContext
     
     private init() {}
     

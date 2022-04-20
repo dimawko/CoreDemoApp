@@ -10,9 +10,10 @@ import UIKit
 class TaskListViewController: UITableViewController {
     
     //MARK: - Private properties
+    private let cellID = "task"
     private var viewContext = CoreDataManager.shared.viewContext
     private var taskList: [Task] = []
-    private let cellID = "task"
+    private var saveAction: UIAlertAction!
     
     //MARK: - viewDidLoad
     override func viewDidLoad() {
@@ -23,7 +24,7 @@ class TaskListViewController: UITableViewController {
         fetchData()
     }
     
-    //MARK: - Private methods
+    //MARK: - NavBar and Alert Controller
     private func setupNavigationBar() {
         title = "Task List"
         navigationController?.navigationBar.prefersLargeTitles = true
@@ -51,32 +52,41 @@ class TaskListViewController: UITableViewController {
     }
     
     @objc private func addNewTask() {
-        showAlert(with: "New task", and: "What do you want to do?") { task in
-            self.save(task)
+        showAlert(with: "New task", and: "What do you want to do?") { newTask in
+            self.saveTask(newTask)
         }
     }
     
     private func showAlert(
         with title: String,
         and message: String,
-        textFieldText: String = "",
-        closure: @escaping(_ task: String) -> Void) {
+        textFieldText: String? = nil,
+        closure: @escaping(_ newTask: String) -> Void) {
             
             let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-            let action = UIAlertAction(title: "Save", style: .default) { _ in
-                guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
+            let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
+            saveAction = UIAlertAction(title: "Save", style: .default) { _ in
+                guard let task = alert.textFields?.first?.text else { return }
                 closure(task)
             }
-            let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
-            alert.addAction(action)
+            
+            saveAction.isEnabled = false
+            
+            alert.addAction(saveAction)
             alert.addAction(cancelAction)
             alert.addTextField { textField in
                 textField.placeholder = "New Task"
                 textField.text = textFieldText
+                textField.addTarget(self, action: #selector(self.textFieldDidChange), for: .allEditingEvents)
             }
             present(alert, animated: true)
         }
     
+    @objc private func textFieldDidChange(_ textField: UITextField) {
+        saveAction.isEnabled = textField.text?.count ?? 0 > 0
+    }
+    
+    //MARK: - Interaction with CoreData
     private func fetchData() {
         let fetchRequest = Task.fetchRequest()
         do {
@@ -86,28 +96,36 @@ class TaskListViewController: UITableViewController {
         }
     }
     
-    private func save(_ taskName: String) {
+    private func saveTask(_ taskName: String) {
         let task = Task(context: viewContext)
         task.title = taskName
         taskList.append(task)
-        
         let cellIndex = IndexPath(row: taskList.count - 1, section: 0)
         tableView.insertRows(at: [cellIndex], with: .automatic)
         
-        if viewContext.hasChanges {
-            do {
-                try viewContext.save()
-            } catch {
-                print(error.localizedDescription)
-            }
+        do {
+            try viewContext.save()
+        } catch {
+            print(error.localizedDescription)
         }
     }
     
-    //TODO: - make edit func change value in CoreData
-    private func edit(_ taskName: String, indexPath: IndexPath) {
-        let task = taskList[indexPath.row]
-        task.title = taskName
-        tableView.reloadRows(at: [indexPath], with: .automatic)
+    private func editTask(currentTask: Task, _ newTaskTitle: String) {
+        currentTask.title = newTaskTitle
+        do {
+            try viewContext.save()
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func deleteTask(currentTask: Task) {
+        viewContext.delete(currentTask)
+        do {
+            try viewContext.save()
+        } catch {
+            print(error.localizedDescription)
+        }
     }
 }
 
@@ -119,18 +137,21 @@ extension TaskListViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: cellID, for: indexPath)
         let task = taskList[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: cellID, for: indexPath)
         var content = cell.defaultContentConfiguration()
+        
         content.text = task.title
         cell.contentConfiguration = content
+        
         return cell
     }
     
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let task = taskList[indexPath.row]
+        
         let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { _, _, completion in
-            let task = self.taskList[indexPath.row]
-            self.viewContext.delete(task)
+            self.deleteTask(currentTask: task)
             self.taskList.remove(at: indexPath.row)
             tableView.deleteRows(at: [indexPath], with: .automatic)
             completion(true)
@@ -140,15 +161,27 @@ extension TaskListViewController {
     
     override func tableView(_ tableView: UITableView, leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let editAction = UIContextualAction(style: .normal, title: "Edit") { _, _, completion in
-            guard let taskTitle = self.taskList[indexPath.row].title else { return }
-            self.showAlert(
-                with: "Edit task",
-                and: "What do you want to do?",
-                textFieldText: taskTitle) { task in
-                    self.edit(task, indexPath: indexPath)
-                }
+            self.editTableView(indexPath: indexPath)
             completion(true)
         }
         return UISwipeActionsConfiguration(actions: [editAction])
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        editTableView(indexPath: indexPath)
+    }
+    
+    private func editTableView(indexPath: IndexPath) {
+        let task = taskList[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: cellID)
+        
+        self.showAlert(
+            with: "Edit task",
+            and: "What do you want to do?",
+            textFieldText: task.title) { newTask in
+                self.editTask(currentTask: task, newTask)
+                cell?.textLabel?.text = newTask
+                self.tableView.reloadRows(at: [indexPath], with: .automatic)
+            }
     }
 }
